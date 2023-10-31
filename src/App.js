@@ -1,81 +1,112 @@
-import { useState } from "react";
-
-import Navigation from "./Navigation/Nav";
-import Products from "./Products/Products";
-import products from "./db/data";
-import Recommended from "./Recommended/Recommended";
-import Sidebar from "./Sidebar/Sidebar";
-import Card from "./components/Card";
-import "./index.css";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Typography,
+  Button,
+} from "@material-tailwind/react";
 
 function App() {
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All'); // Initial category is 'All'
 
-  // ----------- Input Filter -----------
-  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const productOptions = { method: 'GET', url: 'https://fakestoreapi.com/products' };
+    const categoryOptions = { method: 'GET', url: 'https://fakestoreapi.com/products/categories' };
 
-  const handleInputChange = (event) => {
-    setQuery(event.target.value);
-  };
+    axios.all([axios.request(productOptions), axios.request(categoryOptions)])
+      .then(axios.spread((productsResponse, categoriesResponse) => {
+        setProducts(productsResponse.data);
+        setFilteredProducts(productsResponse.data);
+        setCategories(['All', ...categoriesResponse.data]); // Include 'All' option
+      }))
+      .catch((error) => {
+        console.error(error);
+      });
+  }, []);
 
-  const filteredItems = products.filter(
-    (product) => product.title.toLowerCase().indexOf(query.toLowerCase()) !== -1
-  );
-
-  // ----------- Radio Filtering -----------
-  const handleChange = (event) => {
-    setSelectedCategory(event.target.value);
-  };
-
-  // ------------ Button Filtering -----------
-  const handleClick = (event) => {
-    setSelectedCategory(event.target.value);
-  };
-
-  function filteredData(products, selected, query) {
-    let filteredProducts = products;
-
-    // Filtering Input Items
-    if (query) {
-      filteredProducts = filteredItems;
+  useEffect(() => {
+    // Filter products based on the selected category
+    if (selectedCategory === 'All') {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter(product => product.category === selectedCategory);
+      setFilteredProducts(filtered);
     }
+  }, [selectedCategory, products]);
 
-    // Applying selected filter
-    if (selected) {
-      filteredProducts = filteredProducts.filter(
-        ({ category, color, company, newPrice, title }) =>
-          category === selected ||
-          color === selected ||
-          company === selected ||
-          newPrice === selected ||
-          title === selected
-      );
-    }
-
-    return filteredProducts.map(
-      ({ img, title, star, reviews, prevPrice, newPrice }) => (
-        <Card
-          key={Math.random()}
-          img={img}
-          title={title}
-          star={star}
-          reviews={reviews}
-          prevPrice={prevPrice}
-          newPrice={newPrice}
-        />
-      )
-    );
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
   }
 
-  const result = filteredData(products, selectedCategory, query);
-
   return (
-    <>
-      <Sidebar handleChange={handleChange} />
-      <Navigation query={query} handleInputChange={handleInputChange} />
-      <Recommended handleClick={handleClick} />
-      <Products result={result} />
-    </>
+    <div>
+      <h1>Product List</h1>
+      <div>
+        <div className="category-buttons">
+          {categories.map((category) => (
+            <Button  color="blue"
+              key={category}
+              onClick={() => handleCategoryChange(category)}
+              className={`mr-4 size="md" color="red" ${selectedCategory === category ? 'selected' : ''}`}
+            >
+              {category}
+            </Button>
+            
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+        {filteredProducts.map((product) => (
+          <EcommerceCard key={product.id} product={product} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EcommerceCard({ product }) {
+  return (
+    <Card className="w-96 m-2">
+      <CardHeader shadow={false} floated={false} className="h-96">
+        <img
+          src={product.image}
+          alt="card-image"
+          className="h-full w-full object-cover"
+        />
+      </CardHeader>
+      <CardBody>
+        <div className="mb-2 flex items-center justify-between">
+          <Typography color="blue-gray" className="font-medium">
+            {product.title}
+          </Typography>
+          <Typography color="blue-gray" className="font-medium">
+            ${product.price}
+          </Typography>
+        </div>
+        <Typography
+          variant="small"
+          color="gray"
+          className="font-normal opacity-75"
+        >
+          {product.description}
+        </Typography>
+      </CardBody>
+      <CardFooter className="pt-0">
+        <Button
+          ripple={false}
+          fullWidth={true}
+          className="bg-blue-gray-900/10 text-blue-gray-900 shadow-none hover:scale-105 hover:shadow-none focus:scale-105 focus:shadow-none active:scale-100"
+        >
+          Add to Cart
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
